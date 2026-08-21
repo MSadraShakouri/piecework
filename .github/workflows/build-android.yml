@@ -1,0 +1,129 @@
+name: Build Android APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dependencies
+        run: npm install --no-package-lock
+
+      - name: Prepare web assets
+        run: npm run prepare:www
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Generate launcher icons
+        run: npm run android:icons
+
+      - name: Sync Android project
+        run: npx cap sync android
+
+      - name: Set Android version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION_NAME="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION_NAME="$(node -p "require('./package.json').version")-${GITHUB_RUN_NUMBER}"
+          fi
+          VERSION_CODE=$(git rev-list --count HEAD)
+          sed -i "s/versionName .*/versionName \"$VERSION_NAME\"/" android/app/build.gradle
+          sed -i "s/versionCode .*/versionCode $VERSION_CODE/" android/app/build.gradle
+          echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
+
+      - name: Check signing secret
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64" || (echo "Missing ANDROID_KEYSTORE_BASE64 secret" && exit 1)
+
+      - name: Decode keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/keystore.jks
+
+      - name: Configure Gradle to use fixed debug keystore
+        run: |
+          cat >> android/app/build.gradle <<'EOF_GRADLE'
+
+          android {
+              signingConfigs {
+                  debug {
+                      storeFile file('keystore.jks')
+                      storePassword 'android'
+                      keyAlias 'piecework'
+                      keyPassword 'android'
+                  }
+              }
+              buildTypes {
+                  debug {
+                      signingConfig signingConfigs.debug
+                  }
+              }
+          }
+          EOF_GRADLE
+
+      - name: Build Debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          for i in $(seq 1 3); do
+            echo "Gradle build attempt $i"
+            if ./gradlew assembleDebug --no-daemon; then
+              echo "Build succeeded"
+              exit 0
+            fi
+            echo "Build failed, retrying in 10 seconds..."
+            sleep 10
+          done
+          echo "All build attempts failed."
+          exit 1
+
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk "piecework-debug-${VERSION_NAME}.apk"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: piecework-debug-apk
+          path: piecework-debug-*.apk
+          if-no-files-found: error
+
+      - name: Create GitHub Release and upload APK
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: piecework-debug-*.apk
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

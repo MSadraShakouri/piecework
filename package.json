@@ -1,0 +1,17 @@
+{
+  "name": "piecework",
+  "version": "1.0.0",
+  "description": "Offline-first jigsaw puzzle PWA packaged for Android with Capacitor.",
+  "private": true,
+  "scripts": {
+    "prepare:www": "node scripts/prepare-www.js",
+    "android:icons": "node scripts/generate-android-icons.js",
+    "android:sync": "npm run prepare:www && npx cap sync android"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.2.1",
+    "@capacitor/cli": "^6.2.1",
+    "@capacitor/core": "^6.2.1",
+    "sharp": "^0.33.5"
+  }
+}
