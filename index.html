@@ -61,6 +61,10 @@
 
       <section id="gameView" class="view game-view" aria-label="Puzzle board">
         <canvas id="puzzleCanvas"></canvas>
+        <div id="pieceDock" class="piece-dock" aria-label="Loose puzzle pieces">
+          <div class="dock-label"><span>PIECE TRAY</span><small id="dockCount">0 LEFT</small></div>
+          <div id="dockPieces" class="dock-pieces"></div>
+        </div>
         <div class="game-hud">
           <div class="progress-card">
             <span class="progress-ring"><b id="progressPercent">0</b><small>%</small></span>
@@ -72,10 +76,9 @@
           <button id="zoomOutBtn" aria-label="Zoom out">−</button>
           <span id="zoomLabel">100%</span>
           <button id="zoomInBtn" aria-label="Zoom in">+</button>
-          <button id="fitBtn" aria-label="Fit puzzle">⌗</button>
-          <button id="shuffleBtn" aria-label="Shuffle pieces">↝</button>
+          <button id="fitBtn" aria-label="Fit puzzle to screen" title="Fit puzzle to screen">⌗</button>
         </div>
-        <div id="gameHint" class="game-hint">Drag pieces together · Pinch or scroll to zoom</div>
+        <div id="gameHint" class="game-hint">Drag a loose piece onto the tray to return it · Pinch or scroll to zoom</div>
       </section>
     </main>
 
@@ -111,14 +114,7 @@
                 <label><input type="radio" name="difficulty" value="80"><span><b>80</b><small>EXPERT</small></span></label>
               </div>
             </fieldset>
-            <div class="option-row">
-              <div><strong>Edge-first assist</strong><small>Place border pieces nearer the board</small></div>
-              <label class="switch"><input id="edgeAssist" type="checkbox" checked><span></span></label>
-            </div>
-            <div class="option-row">
-              <div><strong>Show piece shadows</strong><small>Add depth while playing</small></div>
-              <label class="switch"><input id="shadowOption" type="checkbox" checked><span></span></label>
-            </div>
+            <p class="setup-note"><span>✓</span> Pieces are kept neatly in a scrollable tray and snap to both neighboring pieces and their correct board position.</p>
             <button id="startBtn" class="primary-btn wide" disabled>START PUZZLE <span>→</span></button>
           </div>
         </div>
@@ -132,13 +128,14 @@
         <nav>
           <button id="menuNew"><span>New puzzle</span><b>＋</b></button>
           <button id="menuResume" class="game-only"><span>Resume puzzle</span><b>→</b></button>
-          <button id="menuRestart" class="game-only"><span>Restart & shuffle</span><b>↝</b></button>
+          <button id="menuReturnLoose" class="game-only"><span>Return loose pieces</span><b>↓</b></button>
+          <button id="menuRestart" class="game-only danger-menu"><span>Reset puzzle…</span><b>↻</b></button>
           <button id="menuHome"><span>Home</span><b>⌂</b></button>
         </nav>
         <div class="menu-settings">
           <p>SETTINGS</p>
-          <label>Sound <input id="menuSound" type="checkbox" checked></label>
-          <label>Piece shadows <input id="menuShadows" type="checkbox" checked></label>
+          <label>Sound feedback <input id="menuSound" type="checkbox" checked></label>
+          <label>Show placement grid <input id="menuGrid" type="checkbox"></label>
         </div>
         <footer><strong>PIECEWORK</strong><small>Offline jigsaw studio · v1.0</small></footer>
       </div>
@@ -148,6 +145,20 @@
       <button id="closePreview" aria-label="Close preview">×</button>
       <img id="fullPreview" alt="Completed puzzle preview" />
       <p>REFERENCE IMAGE</p>
+    </div>
+
+    <div id="resetModal" class="modal" aria-hidden="true">
+      <div class="modal-backdrop" data-close="reset"></div>
+      <div class="confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="resetTitle">
+        <span class="warning-mark">!</span>
+        <p class="eyebrow">RESET PUZZLE</p>
+        <h2 id="resetTitle">Start this puzzle over?</h2>
+        <p>Every placed piece and the current timer will be reset. Your chosen image will stay available.</p>
+        <div class="confirm-actions">
+          <button id="cancelReset" class="secondary-btn">KEEP PLAYING</button>
+          <button id="confirmReset" class="danger-btn">RESET &amp; SHUFFLE</button>
+        </div>
+      </div>
     </div>
 
     <div id="completeModal" class="modal" aria-hidden="true">
