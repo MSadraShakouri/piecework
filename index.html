@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <meta name="theme-color" content="#111317" />
+  <meta name="description" content="A private, offline jigsaw puzzle studio for your own photos." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>Piecework — Jigsaw Studio</title>
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <button id="brandBtn" class="brand" aria-label="Go home">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <span>PIECEWORK</span>
+      </button>
+      <div class="top-actions">
+        <button id="previewBtn" class="icon-btn game-only" aria-label="Preview image" title="Preview image">
+          <svg viewBox="0 0 24 24"><path d="M2.5 12s3.3-5.5 9.5-5.5 9.5 5.5 9.5 5.5-3.3 5.5-9.5 5.5S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.7"/></svg>
+        </button>
+        <button id="soundBtn" class="icon-btn game-only" aria-label="Toggle sound" title="Sound">
+          <svg viewBox="0 0 24 24"><path d="M5 10v4h3l4 3V7l-4 3H5Z"/><path class="sound-wave" d="M15 9c1.4 1.7 1.4 4.3 0 6M18 6c3.4 3.4 3.4 8.6 0 12"/></svg>
+        </button>
+        <button id="menuBtn" class="icon-btn" aria-label="Open menu" title="Menu">
+          <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <section id="homeView" class="view home-view active">
+        <div class="home-copy">
+          <p class="eyebrow">YOUR PHOTOS · YOUR PUZZLES</p>
+          <h1>Slow down.<br><em>Piece it together.</em></h1>
+          <p class="lede">Turn any memory into a tactile jigsaw. Private, offline, and made for every screen.</p>
+          <div class="home-buttons">
+            <button id="newPuzzleBtn" class="primary-btn">CREATE A PUZZLE <span>↗</span></button>
+            <button id="continueBtn" class="text-btn hidden">Continue last puzzle <span>→</span></button>
+          </div>
+          <div class="home-stats">
+            <div><strong id="statSolved">0</strong><span>COMPLETED</span></div>
+            <div><strong id="statTime">0m</strong><span>PLAY TIME</span></div>
+            <div><strong>100%</strong><span>ON DEVICE</span></div>
+          </div>
+        </div>
+        <div class="hero-art" aria-label="Decorative sample puzzle">
+          <div class="hero-frame">
+            <canvas id="heroCanvas" width="760" height="620"></canvas>
+            <div class="loose-piece piece-one"></div>
+            <div class="loose-piece piece-two"></div>
+          </div>
+          <p><span></span> NO UPLOADS. YOUR IMAGES NEVER LEAVE THIS DEVICE.</p>
+        </div>
+      </section>
+
+      <section id="gameView" class="view game-view" aria-label="Puzzle board">
+        <canvas id="puzzleCanvas"></canvas>
+        <div class="game-hud">
+          <div class="progress-card">
+            <span class="progress-ring"><b id="progressPercent">0</b><small>%</small></span>
+            <div><small>PROGRESS</small><strong id="pieceProgress">0 / 0 pieces</strong></div>
+          </div>
+          <div class="timer-card"><small>TIME</small><strong id="gameTimer">00:00</strong></div>
+        </div>
+        <div class="board-tools">
+          <button id="zoomOutBtn" aria-label="Zoom out">−</button>
+          <span id="zoomLabel">100%</span>
+          <button id="zoomInBtn" aria-label="Zoom in">+</button>
+          <button id="fitBtn" aria-label="Fit puzzle">⌗</button>
+          <button id="shuffleBtn" aria-label="Shuffle pieces">↝</button>
+        </div>
+        <div id="gameHint" class="game-hint">Drag pieces together · Pinch or scroll to zoom</div>
+      </section>
+    </main>
+
+    <div id="setupModal" class="modal" aria-hidden="true">
+      <div class="modal-backdrop" data-close="setup"></div>
+      <div class="setup-panel" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
+        <button class="close-btn" data-close="setup" aria-label="Close">×</button>
+        <div class="setup-head">
+          <p class="eyebrow">NEW PUZZLE</p>
+          <h2 id="setupTitle">Choose your canvas.</h2>
+          <p>Everything is processed locally on your device.</p>
+        </div>
+        <div class="setup-grid">
+          <div class="image-column">
+            <button id="imageDrop" class="image-drop">
+              <img id="imagePreview" alt="Selected puzzle" />
+              <span class="drop-empty">
+                <svg viewBox="0 0 24 24"><path d="M4 17V7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><circle cx="9" cy="10" r="2"/><path d="m5 17 4-4 3 3 2-2 5 4"/></svg>
+                <strong>CHOOSE A PHOTO</strong><small>JPG, PNG or WEBP · up to 25 MB</small>
+              </span>
+              <span class="change-photo">CHANGE PHOTO</span>
+            </button>
+            <input id="fileInput" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+            <button id="sampleBtn" class="sample-btn">Use the sample artwork</button>
+          </div>
+          <div class="options-column">
+            <fieldset>
+              <legend>DIFFICULTY</legend>
+              <div id="difficultyOptions" class="difficulty-options">
+                <label><input type="radio" name="difficulty" value="12"><span><b>12</b><small>RELAXED</small></span></label>
+                <label><input type="radio" name="difficulty" value="24" checked><span><b>24</b><small>CLASSIC</small></span></label>
+                <label><input type="radio" name="difficulty" value="48"><span><b>48</b><small>TRICKY</small></span></label>
+                <label><input type="radio" name="difficulty" value="80"><span><b>80</b><small>EXPERT</small></span></label>
+              </div>
+            </fieldset>
+            <div class="option-row">
+              <div><strong>Edge-first assist</strong><small>Place border pieces nearer the board</small></div>
+              <label class="switch"><input id="edgeAssist" type="checkbox" checked><span></span></label>
+            </div>
+            <div class="option-row">
+              <div><strong>Show piece shadows</strong><small>Add depth while playing</small></div>
+              <label class="switch"><input id="shadowOption" type="checkbox" checked><span></span></label>
+            </div>
+            <button id="startBtn" class="primary-btn wide" disabled>START PUZZLE <span>→</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <aside id="sideMenu" class="side-menu" aria-hidden="true">
+      <div class="menu-backdrop" data-close="menu"></div>
+      <div class="menu-panel">
+        <div class="menu-header"><span>MENU</span><button data-close="menu">×</button></div>
+        <nav>
+          <button id="menuNew"><span>New puzzle</span><b>＋</b></button>
+          <button id="menuResume" class="game-only"><span>Resume puzzle</span><b>→</b></button>
+          <button id="menuRestart" class="game-only"><span>Restart & shuffle</span><b>↝</b></button>
+          <button id="menuHome"><span>Home</span><b>⌂</b></button>
+        </nav>
+        <div class="menu-settings">
+          <p>SETTINGS</p>
+          <label>Sound <input id="menuSound" type="checkbox" checked></label>
+          <label>Piece shadows <input id="menuShadows" type="checkbox" checked></label>
+        </div>
+        <footer><strong>PIECEWORK</strong><small>Offline jigsaw studio · v1.0</small></footer>
+      </div>
+    </aside>
+
+    <div id="previewOverlay" class="preview-overlay" aria-hidden="true">
+      <button id="closePreview" aria-label="Close preview">×</button>
+      <img id="fullPreview" alt="Completed puzzle preview" />
+      <p>REFERENCE IMAGE</p>
+    </div>
+
+    <div id="completeModal" class="modal" aria-hidden="true">
+      <div class="modal-backdrop"></div>
+      <div class="complete-card">
+        <span class="complete-star">✦</span><p class="eyebrow">PUZZLE COMPLETE</p>
+        <h2>Beautifully done.</h2>
+        <img id="completeImage" alt="Completed puzzle" />
+        <div class="complete-stats"><div><strong id="completeTime">00:00</strong><small>TIME</small></div><div><strong id="completePieces">24</strong><small>PIECES</small></div></div>
+        <button id="anotherBtn" class="primary-btn wide">MAKE ANOTHER <span>↗</span></button>
+        <button id="backHomeBtn" class="text-btn">Back to home</button>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" role="status"></div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
