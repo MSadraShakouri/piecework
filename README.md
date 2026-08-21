@@ -76,7 +76,8 @@ That creates a signed debug APK and uploads it to the generated GitHub Release.
 
 - User photo picker and drag-and-drop import
 - On-device image resizing
-- 12, 24, 48, and 80-piece modes
+- Aspect-ratio-aware difficulty ranges (square images use square grids such as 5×5; portrait and landscape images receive proportional grids)
+- English, Persian, Arabic, and Simplified Chinese interfaces with automatic RTL layout for Persian and Arabic
 - Procedurally generated complementary jigsaw edges
 - Connected-piece group dragging and magnetic snapping
 - Mouse, touch, stylus, wheel zoom, and pinch support
@@ -100,4 +101,15 @@ That creates a signed debug APK and uploads it to the generated GitHub Release.
 - `capacitor.config.json` — Android app id, name, and web asset directory
 - `scripts/prepare-www.js` — copies static web assets for Capacitor
 - `scripts/generate-android-icons.js` — creates Android launcher icons
+- `icons/icon-monochrome.png` — optional 512×512 transparent, single-color Android themed-icon glyph
 - `docs/APK_SIGNING.md` — fixed debug keystore and APK update guide
+
+## Custom Android monochrome icon
+
+Place your custom themed icon at:
+
+```text
+icons/icon-monochrome.png
+```
+
+Use a **512×512 transparent PNG** containing a single-color (ideally white) Piecework glyph. Do not include a background square or rounded app-icon plate. Android supplies and tints the background itself. The workflow detects this file automatically; if it is absent, the regular icon is used as a fallback.

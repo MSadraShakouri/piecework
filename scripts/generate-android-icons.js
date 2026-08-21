@@ -6,6 +6,9 @@ const path = require('path');
 const sharp = require('sharp');
 
 const SOURCE = path.join(__dirname, '..', 'icons', 'icon-512.png');
+// Optional transparent, single-color glyph used by Android themed icons.
+// Place a 512×512 PNG at icons/icon-monochrome.png to override the fallback.
+const MONO_SOURCE = path.join(__dirname, '..', 'icons', 'icon-monochrome.png');
 const RES = path.join(__dirname, '..', 'android', 'app', 'src', 'main', 'res');
 const BACKGROUND_COLOR = '#121316';
 const SAFE_ZONE_SCALE = 0.66;
@@ -26,12 +29,12 @@ const ADAPTIVE = {
   'mipmap-xxxhdpi': 432,
 };
 
-async function renderContainedIcon(outputName, sizeMap) {
+async function renderContainedIcon(outputName, sizeMap, source = SOURCE) {
   for (const [folder, size] of Object.entries(sizeMap)) {
     const dir = path.join(RES, folder);
     fs.mkdirSync(dir, { recursive: true });
     const artSize = Math.round(size * SAFE_ZONE_SCALE);
-    const art = await sharp(SOURCE).resize(artSize, artSize, { fit: 'contain' }).png().toBuffer();
+    const art = await sharp(source).resize(artSize, artSize, { fit: 'contain' }).png().toBuffer();
     await sharp({
       create: {
         width: size,
@@ -58,7 +61,11 @@ async function main() {
   }
 
   await renderContainedIcon('ic_launcher_foreground.png', ADAPTIVE);
-  await renderContainedIcon('ic_launcher_monochrome.png', ADAPTIVE);
+  const monochromeSource = fs.existsSync(MONO_SOURCE) ? MONO_SOURCE : SOURCE;
+  if (!fs.existsSync(MONO_SOURCE)) {
+    console.warn('icons/icon-monochrome.png not found; using the regular icon as a themed-icon fallback.');
+  }
+  await renderContainedIcon('ic_launcher_monochrome.png', ADAPTIVE, monochromeSource);
 
   const valuesDir = path.join(RES, 'values');
   fs.mkdirSync(valuesDir, { recursive: true });
