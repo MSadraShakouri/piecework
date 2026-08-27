@@ -80,6 +80,7 @@ That creates a signed debug APK and uploads it to the generated GitHub Release.
 - English, Persian, Arabic, and Simplified Chinese interfaces with automatic RTL layout for Persian and Arabic
 - Procedurally generated complementary jigsaw edges
 - Connected-piece group dragging and magnetic snapping
+- Premium tray gestures: pieces lift out of the scrollable tray with a resistance peel, direction-aware scrolling (horizontal scrolls with momentum, vertical lifts), seamless handoff to the board, live snap preview, and choreographed fly-back on return
 - Mouse, touch, stylus, wheel zoom, and pinch support
 - Pan, zoom, fit, reshuffle, preview, timer, progress, sound, and vibration feedback
 - Automatic save/resume using IndexedDB

@@ -64,6 +64,7 @@
         <div id="pieceDock" class="piece-dock" aria-label="Loose puzzle pieces">
           <div class="dock-label"><span>PIECE TRAY</span><small id="dockCount">0 LEFT</small></div>
           <div id="dockPieces" class="dock-pieces"></div>
+          <span id="dockHint" class="dock-hint" aria-hidden="true"></span>
         </div>
         <div class="game-hud">
           <div class="progress-card">
@@ -78,7 +79,7 @@
           <button id="zoomInBtn" aria-label="Zoom in">+</button>
           <button id="fitBtn" aria-label="Fit puzzle to screen" title="Fit puzzle to screen">⌗</button>
         </div>
-        <div id="gameHint" class="game-hint">Drag a loose piece onto the tray to return it · Pinch or scroll to zoom</div>
+        <div id="gameHint" class="game-hint">Drag pieces between the board and the tray · Pinch or scroll to zoom</div>
       </section>
     </main>
 
@@ -145,7 +146,7 @@
           <label>Sound feedback <input id="menuSound" type="checkbox" checked></label>
           <label>Show placement grid <input id="menuGrid" type="checkbox"></label>
         </div>
-        <footer><strong>PIECEWORK</strong><small>Offline jigsaw studio · v1.1</small></footer>
+        <footer><strong>PIECEWORK</strong><small>Offline jigsaw studio · v1.2</small></footer>
       </div>
     </aside>
 
