@@ -6,7 +6,8 @@
   "scripts": {
     "prepare:www": "node scripts/prepare-www.js",
     "android:icons": "node scripts/generate-android-icons.js",
-    "android:sync": "npm run prepare:www && npx cap sync android"
+    "android:sync": "npm run prepare:www && npx cap sync android",
+    "test": "node --test"
   },
   "devDependencies": {
     "@capacitor/android": "^7.6.8",

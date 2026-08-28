@@ -1,3 +1,15 @@
+import {
+  chooseGrid,
+  difficultyRanges,
+  edgePath,
+  makePath,
+  makeTrayOrder,
+  neighbors,
+  sampleArtwork,
+  secureIndex,
+  secureShuffle,
+} from './js/puzzle.js';
+
 (() => {
   'use strict';
   const $ = s => document.querySelector(s);
@@ -34,29 +46,6 @@
   let camera = {x:0,y:0,scale:1}, pointers = new Map(), gesture = null, drag = null, currentView = 'home';
   const stats = JSON.parse(localStorage.getItem('piecework.stats') || '{"solved":0,"seconds":0}');
 
-  function secureIndex(max){
-    if(max<=1)return 0;const limit=Math.floor(4294967296/max)*max,a=new Uint32Array(1);do{crypto.getRandomValues(a)}while(a[0]>=limit);return a[0]%max
-  }
-  function secureShuffle(items){const a=[...items];for(let i=a.length-1;i>0;i--){const j=secureIndex(i+1);[a[i],a[j]]=[a[j],a[i]]}return a}
-  function makeTrayOrder(pieces){
-    const ids=pieces.map(p=>p.id),near=(a,b)=>Math.abs(a.row-b.row)<=1&&Math.abs(a.col-b.col)<=1;
-    let best=null,bestScore=Infinity;
-    // Use independent cryptographic shuffles, then reject visually clustered orders.
-    for(let attempt=0;attempt<400;attempt++){const order=secureShuffle(ids);let score=0;for(let i=1;i<order.length;i++)if(near(pieces[order[i-1]],pieces[order[i]]))score++;if(score<bestScore){best=order;bestScore=score}if(score===0)return order}
-    return best;
-  }
-
-  function sampleArtwork(width=1400,height=950){
-    const c=document.createElement('canvas'); c.width=width;c.height=height; const x=c.getContext('2d');
-    const g=x.createLinearGradient(0,0,width,height);g.addColorStop(0,'#d9b18d');g.addColorStop(.42,'#809b8a');g.addColorStop(1,'#304b4d');x.fillStyle=g;x.fillRect(0,0,width,height);
-    x.fillStyle='#e9d9bd';x.beginPath();x.arc(width*.23,height*.25,height*.12,0,Math.PI*2);x.fill();
-    x.fillStyle='#263c3e';x.beginPath();x.moveTo(0,height*.72);x.quadraticCurveTo(width*.2,height*.42,width*.42,height*.73);x.quadraticCurveTo(width*.64,height*.32,width,height*.7);x.lineTo(width,height);x.lineTo(0,height);x.fill();
-    x.fillStyle='#bb684f';x.beginPath();x.moveTo(width*.34,height);x.quadraticCurveTo(width*.53,height*.52,width*.73,height);x.fill();
-    x.strokeStyle='rgba(240,225,194,.7)';x.lineWidth=5;for(let i=0;i<7;i++){x.beginPath();x.moveTo(width*(.08+i*.15),height);x.quadraticCurveTo(width*(.15+i*.13),height*.62,width*(.18+i*.14),height*.54);x.stroke()}
-    x.fillStyle='rgba(255,255,255,.14)';for(let i=0;i<70;i++){x.beginPath();x.arc(Math.random()*width,Math.random()*height,Math.random()*3+1,0,7);x.fill()}
-    return c.toDataURL('image/jpeg',.9);
-  }
-
   function drawHero(){
     const c=els.hero,w=c.width,h=c.height,g=hctx.createLinearGradient(0,0,w,h);g.addColorStop(0,'#d1a37f');g.addColorStop(.45,'#7b9989');g.addColorStop(1,'#29474b');hctx.fillStyle=g;hctx.fillRect(0,0,w,h);
     hctx.fillStyle='#ecddc3';hctx.beginPath();hctx.arc(w*.22,h*.23,83,0,7);hctx.fill();hctx.fillStyle='#223c3e';hctx.beginPath();hctx.moveTo(0,h*.76);hctx.quadraticCurveTo(w*.22,h*.36,w*.47,h*.78);hctx.quadraticCurveTo(w*.72,h*.28,w,h*.72);hctx.lineTo(w,h);hctx.lineTo(0,h);hctx.fill();
@@ -73,19 +62,7 @@
   function loadSelected(data,aspect){selectedData=data;els.imagePreview.src=data;els.drop.classList.add('has-image');els.start.disabled=false;if(aspect)updateDifficultyCounts(aspect);else loadImage(data).then(im=>updateDifficultyCounts(im.width/im.height))}
   function readFile(file){if(!file)return;if(file.size>25*1024*1024){toast('That image is larger than 25 MB');return}const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const max=1800,scale=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*scale);c.height=Math.round(im.height*scale);c.getContext('2d').drawImage(im,0,0,c.width,c.height);loadSelected(c.toDataURL('image/jpeg',.9),im.width/im.height)};im.src=r.result};r.readAsDataURL(file)}
   function loadImage(data){return new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=reject;im.src=data})}
-  const difficultyRanges={12:[9,16],24:[20,30],48:[42,56],80:[70,90]};
-  function chooseGrid(target,aspect){
-    const [min,max]=difficultyRanges[target]||[Math.max(4,target-4),target+6];let best=[target,1],bestScore=Infinity;
-    for(let rows=2;rows<=20;rows++)for(let cols=2;cols<=20;cols++){const total=rows*cols;if(total<min||total>max)continue;const pieceAspect=aspect*rows/cols;const shapePenalty=Math.abs(Math.log(pieceAspect));const countPenalty=Math.abs(total-target)/target;const score=shapePenalty*4+countPenalty*.35;if(score<bestScore){bestScore=score;best=[cols,rows]}}
-    return best;
-  }
   function updateDifficultyCounts(aspect){$$('#difficultyOptions label').forEach(label=>{const input=label.querySelector('input'),target=+input.value,[cols,rows]=chooseGrid(target,aspect),actual=cols*rows;label.querySelector('b').textContent=actual;label.title=`${cols} × ${rows} (${actual} ${tr('pieces')})`})}
-  function edgePath(p,x1,y1,x2,y2,nx,ny,sign,size){
-    const dx=x2-x1,dy=y2-y1; const at=t=>[x1+dx*t,y1+dy*t]; let a=at(.34),b=at(.42),c=at(.5),d=at(.58),e=at(.66);p.lineTo(a[0],a[1]);
-    const amp=size*.2*sign;p.bezierCurveTo(b[0],b[1],b[0]+nx*amp*.15,b[1]+ny*amp*.15,b[0]+nx*amp*.55,b[1]+ny*amp*.55);p.bezierCurveTo(b[0]+nx*amp,b[1]+ny*amp,d[0]+nx*amp,d[1]+ny*amp,d[0]+nx*amp*.55,d[1]+ny*amp*.55);p.bezierCurveTo(d[0]+nx*amp*.15,d[1]+ny*amp*.15,d[0],d[1],e[0],e[1]);p.lineTo(x2,y2)
-  }
-  function makePath(pc){const w=pc.w,h=pc.h,p=new Path2D();p.moveTo(0,0);edgePath(p,0,0,w,0,0,-1,pc.edges.t,w);edgePath(p,w,0,w,h,1,0,pc.edges.r,h);edgePath(p,w,h,0,h,0,1,pc.edges.b,w);edgePath(p,0,h,0,0,-1,0,pc.edges.l,h);p.closePath();return p}
-
   async function createGame(data,target){
     image=await loadImage(data);const aspect=image.width/image.height,[cols,rows]=chooseGrid(target,aspect),count=cols*rows,boardW=800,boardH=boardW/aspect,cw=boardW/cols,ch=boardH/rows,pieces=[];let seed=(Date.now()>>>0),rand=()=>((seed=Math.imul(1664525,seed)+1013904223>>>0)/4294967296);
     const right=Array.from({length:rows},()=>Array(cols).fill(0)),bottom=Array.from({length:rows},()=>Array(cols).fill(0));for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){if(c<cols-1)right[r][c]=rand()>.5?1:-1;if(r<rows-1)bottom[r][c]=rand()>.5?1:-1}
@@ -96,7 +73,6 @@
   async function restoreGame(saved){image=await loadImage(saved.imageData);game=saved;game.showGrid=gridOn;if(!game.trayOrder)game.trayOrder=makeTrayOrder(game.pieces);game.pieces.forEach(p=>{p.path=makePath(p);if(p.inTray===undefined)p.inTray=false});game.lastTick=Date.now();showView('game');buildDock();fitBoard();updateHUD();toast('Welcome back');}
   function serialGame(){if(!game)return null;return {...game,lastTick:undefined,pieces:game.pieces.map(({path,...p})=>p)}}
 
-  function neighbors(a,b){return (a.row===b.row&&Math.abs(a.col-b.col)===1)||(a.col===b.col&&Math.abs(a.row-b.row)===1)}
   function groupMembers(gid){return game.pieces.filter(p=>p.gid===gid)}
   function connectedCount(){const groups=new Set(game.pieces.map(p=>p.gid));return game.count-groups.size}
   function buildDock(){
