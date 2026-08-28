@@ -42,8 +42,6 @@ export function createI18n(app) {
     }
 
     app.$('#languageSelect').value = app.state.language;
-    app.updateHUD?.();
-    app.buildDock?.();
   }
 
   return { tr, applyLanguage };
