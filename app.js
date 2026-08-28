@@ -19,6 +19,7 @@ function startApp() {
     ...dom,
     state,
     storage,
+    version: null,
     stats: state.stats,
     get soundOn() {
       return state.soundOn;
@@ -116,6 +117,7 @@ function startApp() {
     languageService.applyLanguage(next);
     app.updateHUD();
     app.buildDock();
+    app.updateVersionLabel?.();
   };
 
   const boardInput = createBoardInput(app);

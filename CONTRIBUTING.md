@@ -38,7 +38,7 @@ To create the web directory used by Capacitor:
 npm run prepare:www
 ```
 
-This copies `index.html`, `app.js`, the `js/` and `styles/` directories, icons, the manifest, and the service worker into `www/`. Run it after changing runtime assets; do not edit generated files in `www/`.
+This copies `index.html`, `app.js`, `package.json`, the `js/` and `styles/` directories, icons, the manifest, and the service worker into `www/`. Run it after changing runtime assets; do not edit generated files in `www/`.
 
 ## Architecture rules
 
@@ -50,6 +50,18 @@ This copies `index.html`, `app.js`, the `js/` and `styles/` directories, icons, 
 - Preserve the Android app id and signing setup; changing either can prevent an existing APK from updating.
 
 When changing the module or stylesheet graph, run `npm test`, `npm run prepare:www`, and `git diff --check`.
+
+## Versioning
+
+Keep the release version in one place: the `version` field in `package.json`. The web footer reads the package metadata, and non-tag Android builds use the same field. Release tags should match it. The service worker intentionally uses a stable cache name, so it does not need a second copy of the release version.
+
+To change the version without creating a Git tag:
+
+```bash
+npm version "$NEW_VERSION" --no-git-tag-version
+```
+
+For a release, create a matching `v<version>` tag after committing the change. The Android workflow rejects a tag whose version does not match `package.json`.
 
 ## Android packaging
 

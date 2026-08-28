@@ -112,6 +112,26 @@ export function createUi(app) {
     });
   }
 
+  function updateVersionLabel() {
+    const label = app.$('#appVersion');
+    if (!label) return;
+    const title = app.tr('Offline jigsaw studio');
+    label.textContent = app.version ? `${title} · v${app.version}` : title;
+  }
+
+  async function loadVersion() {
+    try {
+      const response = await globalThis.fetch('./package.json', { cache: 'no-store' });
+      if (!response.ok) return;
+      const metadata = await response.json();
+      if (typeof metadata.version !== 'string' || !metadata.version) return;
+      app.version = metadata.version;
+      updateVersionLabel();
+    } catch {
+      // The footer remains useful if package metadata is unavailable.
+    }
+  }
+
   function bindEvents() {
     app.$('#newPuzzleBtn').onclick = () => openModal(app.els.setup, true);
     app.$('#menuNew').onclick = () => {
@@ -247,6 +267,7 @@ export function createUi(app) {
       });
     }
     bindEvents();
+    loadVersion();
   }
 
   return {
@@ -259,6 +280,8 @@ export function createUi(app) {
     readFile,
     loadImage,
     updateDifficultyCounts,
+    updateVersionLabel,
+    loadVersion,
     bindEvents,
     init,
   };

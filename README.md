@@ -18,7 +18,7 @@ The web app is a static PWA. Its application shell is cached by the service work
 
 ## Web and Android
 
-The web version can be hosted from any static HTTPS host. The Android app uses the same files through Capacitor and has the package id `com.msadrashakouri.piecework`.
+The web version can be hosted from any static HTTPS host. The Android app uses the same files through Capacitor and has the package id `com.msadrashakouri.piecework`. The canonical release version is the `version` field in [`package.json`](package.json); the app and non-tag Android builds read it from there.
 
 Development, testing, static hosting, and APK instructions live in [`CONTRIBUTING.md`](CONTRIBUTING.md). The fixed debug-signing setup and APK update constraints are documented in [`docs/APK_SIGNING.md`](docs/APK_SIGNING.md).
 
@@ -32,6 +32,7 @@ styles/          Ordered base, layout, game, component, and responsive CSS
 icons/           PWA and Android launcher icons
 sw.js            Offline cache and runtime asset list
 scripts/         Static-asset preparation and Android icon generation
+package.json     Canonical release version and development metadata
 test/            Node tests for puzzle behavior and the asset graph
 docs/            Android signing documentation
 ```
