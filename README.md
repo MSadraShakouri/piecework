@@ -92,16 +92,27 @@ That creates a signed debug APK and uploads it to the generated GitHub Release.
 
 ## Project structure
 
-- `index.html` — application markup
-- `styles.css` — responsive interface and visual design
-- `app.js` — puzzle engine, renderer, input, persistence, and UI
+- `index.html` — application markup and stylesheet entry points
+- `app.js` — small ES-module bootstrap entry point
+- `js/dom.js` — DOM lookup and canvas context setup
+- `js/i18n.js` — translations and language switching
+- `js/state.js` — in-memory application state
+- `js/storage.js` — localStorage and IndexedDB persistence
+- `js/puzzle.js` — puzzle geometry, grid selection, shuffling, and state construction
+- `js/game.js` — game lifecycle, timer, snapping, completion, and reset behavior
+- `js/renderer.js` — canvas rendering, camera, zoom, and hit testing
+- `js/tray.js` — tray rendering and premium tray-to-board gestures
+- `js/board-input.js` — board pointer, pan, pinch, and wheel input
+- `js/ui.js` — modals, home screen, setup flow, settings, and event wiring
+- `styles/` — ordered base, layout, game, component, and responsive stylesheets
 - `manifest.webmanifest` — PWA metadata
 - `sw.js` — offline cache
 - `icons/` — app icons
-- `package.json` — Capacitor/Android packaging scripts
+- `package.json` — Capacitor/Android packaging and test scripts
 - `capacitor.config.json` — Android app id, name, and web asset directory
 - `scripts/prepare-www.js` — copies static web assets for Capacitor
 - `scripts/generate-android-icons.js` — creates Android launcher icons
+- `test/` — Node tests for puzzle behavior and persistence-safe serialization
 - `icons/icon-monochrome.png` — optional 512×512 transparent, single-color Android themed-icon glyph
 - `docs/APK_SIGNING.md` — fixed debug keystore and APK update guide
 
