@@ -21,7 +21,7 @@ export function createDom(documentRef = globalThis.document) {
 
   return {
     document: documentRef,
-    $, 
+    $,
     $$,
     els,
     ctx: els.canvas.getContext('2d'),

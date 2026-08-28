@@ -110,8 +110,8 @@ That creates a signed debug APK and uploads it to the generated GitHub Release.
 - `icons/` — app icons
 - `package.json` — Capacitor/Android packaging and test scripts
 - `capacitor.config.json` — Android app id, name, and web asset directory
-- `scripts/prepare-www.js` — copies static web assets for Capacitor
-- `scripts/generate-android-icons.js` — creates Android launcher icons
+- `scripts/prepare-www.cjs` — copies static web assets for Capacitor
+- `scripts/generate-android-icons.cjs` — creates Android launcher icons
 - `test/` — Node tests for puzzle behavior and persistence-safe serialization
 - `icons/icon-monochrome.png` — optional 512×512 transparent, single-color Android themed-icon glyph
 - `docs/APK_SIGNING.md` — fixed debug keystore and APK update guide
