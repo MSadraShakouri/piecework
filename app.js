@@ -1,11 +1,7 @@
 import {
   chooseGrid,
-  createGameState,
-  makePath,
-  makeTrayOrder,
   neighbors,
   sampleArtwork,
-  serializeGame,
 } from './js/puzzle.js';
 
 import { createDom } from './js/dom.js';
@@ -13,6 +9,7 @@ import { createI18n } from './js/i18n.js';
 import { createState } from './js/state.js';
 import { createStorage } from './js/storage.js';
 import { createRenderer } from './js/renderer.js';
+import { createGameController } from './js/game.js';
 
 (() => {
   'use strict';
@@ -30,6 +27,7 @@ import { createRenderer } from './js/renderer.js';
     ...dom,
     state,
     storage,
+    stats,
     get soundOn() { return soundOn; },
     get gridOn() { return gridOn; },
     get language() { return language; },
@@ -41,6 +39,10 @@ import { createRenderer } from './js/renderer.js';
     set game(value) { game = value; },
     get raf() { return raf; },
     set raf(value) { raf = value; },
+    get timerInterval() { return timerInterval; },
+    set timerInterval(value) { timerInterval = value; },
+    get saveTimer() { return saveTimer; },
+    set saveTimer(value) { saveTimer = value; },
     get camera() { return camera; },
     get pointers() { return pointers; },
     get gesture() { return gesture; },
@@ -50,9 +52,17 @@ import { createRenderer } from './js/renderer.js';
     get currentView() { return currentView; },
     get trayState() { return trayState; },
     get dockMomentum() { return dockMomentum; },
-    updateHUD,
-    buildDock,
-    snapPreviewPos,
+    get tr() { return tr; },
+    get loadImage() { return loadImage; },
+    get showView() { return showView; },
+    get openModal() { return openModal; },
+    get toast() { return toast; },
+    get buildDock() { return buildDock; },
+    get fitBoard() { return fitBoard; },
+    get requestRender() { return requestRender; },
+    get snapPreviewPos() { return snapPreviewPos; },
+    get abortCarry() { return abortCarry; },
+    get abortPeel() { return abortPeel; },
   };
   const renderer = createRenderer(runtime);
   const {
@@ -67,6 +77,26 @@ import { createRenderer } from './js/renderer.js';
     zoomAt,
     hitPiece,
   } = renderer;
+  const gameController = createGameController(runtime);
+  Object.assign(runtime, gameController);
+  const {
+    createGame,
+    restoreGame,
+    serialGame,
+    groupMembers,
+    connectedCount,
+    updateHUD,
+    startClock,
+    stopClock,
+    queueSave,
+    bringGroupFront,
+    trySnap,
+    afterSnap,
+    playClick,
+    finishGame,
+    shuffle,
+    formatTime,
+  } = gameController;
   const languageService = createI18n(runtime);
   const tr = languageService.tr;
   const applyLanguage = next => {
@@ -79,7 +109,6 @@ import { createRenderer } from './js/renderer.js';
   function showView(name){currentView=name;if(name!=='game'){if(trayState.mode==='carry')abortCarry();else if(trayState.mode==='peel')abortPeel()}els.home.classList.toggle('active',name==='home');els.game.classList.toggle('active',name==='game');$$('.game-only').forEach(e=>e.classList.toggle('hidden',name!=='game'));if(name==='game'){resize();startClock()}else stopClock()}
   function openModal(el,on=true){el.classList.toggle('open',on);el.setAttribute('aria-hidden',String(!on))}
   function toast(msg){const t=els.toast;t.textContent=tr(msg);t.classList.add('show');clearTimeout(t._to);t._to=setTimeout(()=>t.classList.remove('show'),2200)}
-  function formatTime(s){s=Math.max(0,Math.floor(s));return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`}
   function updateHome(){ $('#statSolved').textContent=stats.solved||0; $('#statTime').textContent=stats.seconds<3600?`${Math.round(stats.seconds/60)}m`:`${(stats.seconds/3600).toFixed(1)}h`; storage.getCurrent().then(v=>$('#continueBtn').classList.toggle('hidden',!v)); }
   function updateSettings(){ state.soundOn=soundOn;state.gridOn=gridOn;state.language=language;$('#menuSound').checked=soundOn;$('#menuGrid').checked=gridOn;$('#languageSelect').value=language;$('#soundBtn').classList.toggle('muted',!soundOn);storage.saveSettings({sound:soundOn,grid:gridOn,language});if(game){game.showGrid=gridOn;requestRender()}}
 
@@ -87,22 +116,6 @@ import { createRenderer } from './js/renderer.js';
   function readFile(file){if(!file)return;if(file.size>25*1024*1024){toast('That image is larger than 25 MB');return}const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const max=1800,scale=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*scale);c.height=Math.round(im.height*scale);c.getContext('2d').drawImage(im,0,0,c.width,c.height);loadSelected(c.toDataURL('image/jpeg',.9),im.width/im.height)};im.src=r.result};r.readAsDataURL(file)}
   function loadImage(data){return new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=reject;im.src=data})}
   function updateDifficultyCounts(aspect){$$('#difficultyOptions label').forEach(label=>{const input=label.querySelector('input'),target=+input.value,[cols,rows]=chooseGrid(target,aspect),actual=cols*rows;label.querySelector('b').textContent=actual;label.title=`${cols} × ${rows} (${actual} ${tr('pieces')})`})}
-  async function createGame(data,target){
-    image=await loadImage(data);
-    game=createGameState({
-      imageData:data,
-      imageWidth:image.width,
-      imageHeight:image.height,
-      target,
-      showGrid:gridOn,
-    });
-    showView('game');buildDock();fitBoard();updateHUD();queueSave();toast('Choose a piece from the tray to begin');
-  }
-  async function restoreGame(saved){image=await loadImage(saved.imageData);game=saved;game.showGrid=gridOn;if(!game.trayOrder)game.trayOrder=makeTrayOrder(game.pieces);game.pieces.forEach(p=>{p.path=makePath(p);if(p.inTray===undefined)p.inTray=false});game.lastTick=Date.now();showView('game');buildDock();fitBoard();updateHUD();toast('Welcome back');}
-  function serialGame(){return serializeGame(game)}
-
-  function groupMembers(gid){return game.pieces.filter(p=>p.gid===gid)}
-  function connectedCount(){const groups=new Set(game.pieces.map(p=>p.gid));return game.count-groups.size}
   function buildDock(){
     if(!game)return;const dock=$('#dockPieces');dock.innerHTML='';const loose=game.trayOrder.map(id=>game.pieces[id]).filter(p=>p.inTray);
     $('#dockCount').textContent=`${loose.length} ${tr('LEFT')}`;
@@ -322,25 +335,6 @@ import { createRenderer } from './js/renderer.js';
     btn.addEventListener('contextmenu',e=>e.preventDefault());
   }
   // ---------------------------------------------------------------
-  function updateHUD(){if(!game)return;const correct=game.pieces.filter(p=>!p.inTray&&p.gid===-1).length,pct=Math.round(correct/game.count*100);$('#progressPercent').textContent=pct;$('#pieceProgress').textContent=`${correct} / ${game.count} ${tr('placed')}`;$('#gameTimer').textContent=formatTime(game.seconds);$('#zoomLabel').textContent=`${Math.round(camera.scale*100)}%`}
-  function startClock(){stopClock();if(!game||game.completed)return;game.lastTick=Date.now();timerInterval=setInterval(()=>{const now=Date.now();game.seconds+=(now-game.lastTick)/1000;game.lastTick=now;updateHUD();if(Math.floor(game.seconds)%8===0)queueSave()},1000)}
-  function stopClock(){clearInterval(timerInterval);timerInterval=null}
-  function queueSave(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>game&&storage.putCurrent(serialGame()),500)}
-
-  function bringGroupFront(gid){const ids=game.order.filter(id=>game.pieces[id].gid===gid);game.order=game.order.filter(id=>game.pieces[id].gid!==gid).concat(ids)}
-  function trySnap(gid){
-    const moving=groupMembers(gid),cell=Math.min(game.boardW/game.cols,game.boardH/game.rows),gridThreshold=cell*.36,offX=moving[0].x-moving[0].targetX,offY=moving[0].y-moving[0].targetY;
-    // The board itself is a valid snap target, so a piece never has to wait for a neighbour.
-    if(Math.hypot(offX,offY)<gridThreshold){moving.forEach(p=>{p.x=p.targetX;p.y=p.targetY;p.gid=-1});afterSnap();return true}
-    const others=game.pieces.filter(p=>!p.inTray&&p.gid!==gid),pieceThreshold=cell*.30;let match=null;
-    outer:for(const a of moving)for(const b of others)if(neighbors(a,b)){const ax=a.x-a.targetX,ay=a.y-a.targetY,bx=b.x-b.targetX,by=b.y-b.targetY,dx=bx-ax,dy=by-ay;if(Math.hypot(dx,dy)<pieceThreshold){match={dx,dy,newGid:b.gid};break outer}}
-    if(match){moving.forEach(p=>{p.x+=match.dx;p.y+=match.dy;p.gid=match.newGid});afterSnap();return true}return false
-  }
-  function afterSnap(){playClick();navigator.vibrate?.(20);updateHUD();queueSave();requestRender();if(game.pieces.every(p=>!p.inTray&&p.gid===-1))finishGame()}
-  function playClick(){if(!soundOn)return;try{const ac=playClick.ac||(playClick.ac=new (window.AudioContext||window.webkitAudioContext)()),o=ac.createOscillator(),g=ac.createGain();o.frequency.setValueAtTime(280,ac.currentTime);o.frequency.exponentialRampToValueAtTime(520,ac.currentTime+.06);g.gain.setValueAtTime(.08,ac.currentTime);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.09);o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+.1)}catch(e){}}
-  function finishGame(){game.completed=true;stopClock();const offX=game.pieces[0].x-game.pieces[0].targetX,offY=game.pieces[0].y-game.pieces[0].targetY;game.pieces.forEach(p=>{p.x=p.targetX+offX;p.y=p.targetY+offY});stats.solved=(stats.solved||0)+1;stats.seconds=(stats.seconds||0)+game.seconds;storage.saveStats(stats);storage.deleteCurrent();setTimeout(()=>{els.completeImage.src=game.imageData;$('#completeTime').textContent=formatTime(game.seconds);$('#completePieces').textContent=game.count;openModal(els.complete,true)},650);requestRender()}
-  function shuffle(){if(!game)return;if(trayState.mode==='carry')abortCarry();else if(trayState.mode==='peel')abortPeel();game.pieces.forEach(p=>{p.x=p.targetX;p.y=p.targetY;p.gid=p.id;p.inTray=true});game.trayOrder=makeTrayOrder(game.pieces);game.completed=false;game.seconds=0;game.lastTick=Date.now();buildDock();fitBoard();updateHUD();queueSave();toast('Puzzle reset and tray reshuffled')}
-
   els.canvas.addEventListener('pointerdown',e=>{if(!game)return;if(trayState.mode==='carry'||trayState.mode==='peel')return;els.canvas.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pointers.size===2){const a=[...pointers.values()],dx=a[1].x-a[0].x,dy=a[1].y-a[0].y;gesture={dist:Math.hypot(dx,dy),scale:camera.scale,cx:(a[0].x+a[1].x)/2,cy:(a[0].y+a[1].y)/2,camX:camera.x,camY:camera.y};drag=null;return}const w=screenToWorld(e.clientX,e.clientY),p=hitPiece(w);if(p){bringGroupFront(p.gid);drag={type:'piece',gid:p.gid,last:w}}else drag={type:'pan',last:{x:e.clientX,y:e.clientY}};requestRender()});
   els.canvas.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId))return;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pointers.size>=2&&gesture){const a=[...pointers.values()],dx=a[1].x-a[0].x,dy=a[1].y-a[0].y,cx=(a[0].x+a[1].x)/2,cy=(a[0].y+a[1].y)/2;camera.scale=Math.max(.18,Math.min(3,gesture.scale*Math.hypot(dx,dy)/gesture.dist));camera.x=gesture.camX+(cx-gesture.cx);camera.y=gesture.camY+(cy-gesture.cy);updateHUD();requestRender();return}if(!drag)return;if(drag.type==='piece'){const w=screenToWorld(e.clientX,e.clientY),dx=w.x-drag.last.x,dy=w.y-drag.last.y;groupMembers(drag.gid).forEach(p=>{p.x+=dx;p.y+=dy});drag.last=w;setDockDroppable(e.clientY>=dockTopY())}else{camera.x+=e.clientX-drag.last.x;camera.y+=e.clientY-drag.last.y;drag.last={x:e.clientX,y:e.clientY}}requestRender()});
   function pointerEnd(e){pointers.delete(e.pointerId);setDockDroppable(false);if(drag?.type==='piece'){const trayTop=dockTopY();if(e.clientY>=trayTop)returnGroupToTray(drag.gid);else trySnap(drag.gid)}drag=null;gesture=null;queueSave();requestRender()}
