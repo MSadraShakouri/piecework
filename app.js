@@ -12,6 +12,7 @@ import { createDom } from './js/dom.js';
 import { createI18n } from './js/i18n.js';
 import { createState } from './js/state.js';
 import { createStorage } from './js/storage.js';
+import { createRenderer } from './js/renderer.js';
 
 (() => {
   'use strict';
@@ -25,7 +26,47 @@ import { createStorage } from './js/storage.js';
   let selectedData = null, image = null, game = null, raf = 0, timerInterval = null, saveTimer = null;
   let camera = { x: 0, y: 0, scale: 1 }, pointers = new Map(), gesture = null, drag = null, currentView = 'home';
   const stats = state.stats;
-  const runtime = { ...dom, state, storage };
+  const runtime = {
+    ...dom,
+    state,
+    storage,
+    get soundOn() { return soundOn; },
+    get gridOn() { return gridOn; },
+    get language() { return language; },
+    get selectedData() { return selectedData; },
+    set selectedData(value) { selectedData = value; },
+    get image() { return image; },
+    set image(value) { image = value; },
+    get game() { return game; },
+    set game(value) { game = value; },
+    get raf() { return raf; },
+    set raf(value) { raf = value; },
+    get camera() { return camera; },
+    get pointers() { return pointers; },
+    get gesture() { return gesture; },
+    set gesture(value) { gesture = value; },
+    get drag() { return drag; },
+    set drag(value) { drag = value; },
+    get currentView() { return currentView; },
+    get trayState() { return trayState; },
+    get dockMomentum() { return dockMomentum; },
+    updateHUD,
+    buildDock,
+    snapPreviewPos,
+  };
+  const renderer = createRenderer(runtime);
+  const {
+    drawHero,
+    drawDockPiece,
+    resize,
+    screenToWorld,
+    requestRender,
+    render,
+    fitBoard,
+    fitAll,
+    zoomAt,
+    hitPiece,
+  } = renderer;
   const languageService = createI18n(runtime);
   const tr = languageService.tr;
   const applyLanguage = next => {
@@ -34,12 +75,6 @@ import { createStorage } from './js/storage.js';
     updateHUD();
     buildDock();
   };
-
-  function drawHero(){
-    const c=els.hero,w=c.width,h=c.height,g=hctx.createLinearGradient(0,0,w,h);g.addColorStop(0,'#d1a37f');g.addColorStop(.45,'#7b9989');g.addColorStop(1,'#29474b');hctx.fillStyle=g;hctx.fillRect(0,0,w,h);
-    hctx.fillStyle='#ecddc3';hctx.beginPath();hctx.arc(w*.22,h*.23,83,0,7);hctx.fill();hctx.fillStyle='#223c3e';hctx.beginPath();hctx.moveTo(0,h*.76);hctx.quadraticCurveTo(w*.22,h*.36,w*.47,h*.78);hctx.quadraticCurveTo(w*.72,h*.28,w,h*.72);hctx.lineTo(w,h);hctx.lineTo(0,h);hctx.fill();
-    hctx.strokeStyle='rgba(255,255,255,.28)';hctx.lineWidth=2;for(let i=1;i<5;i++){hctx.beginPath();hctx.moveTo(i*w/5,0);hctx.lineTo(i*w/5,h);hctx.stroke()}for(let i=1;i<4;i++){hctx.beginPath();hctx.moveTo(0,i*h/4);hctx.lineTo(w,i*h/4);hctx.stroke()}
-  }
 
   function showView(name){currentView=name;if(name!=='game'){if(trayState.mode==='carry')abortCarry();else if(trayState.mode==='peel')abortPeel()}els.home.classList.toggle('active',name==='home');els.game.classList.toggle('active',name==='game');$$('.game-only').forEach(e=>e.classList.toggle('hidden',name!=='game'));if(name==='game'){resize();startClock()}else stopClock()}
   function openModal(el,on=true){el.classList.toggle('open',on);el.setAttribute('aria-hidden',String(!on))}
@@ -76,7 +111,6 @@ import { createStorage } from './js/storage.js';
     loose.forEach(p=>{const b=document.createElement('button'),c=document.createElement('canvas');b.className='dock-piece';b.title=`Place piece ${p.id+1}`;b.setAttribute('aria-label',`Put piece ${p.id+1} on the board`);drawDockPiece(p,c);b.appendChild(c);b.onclick=()=>{if(trayState.suppressClick){trayState.suppressClick=false;return}b.classList.add('removing');setTimeout(()=>releaseFromTray(p),100)};dock.appendChild(b);attachTrayGesture(b,p)})
   }
   function refreshDockCount(){if(!game)return;const loose=game.pieces.filter(p=>p.inTray).length;$('#dockCount').textContent=`${loose} ${tr('LEFT')}`}
-  function drawDockPiece(p,c){const size=72,d=2;c.width=size*d;c.height=size*d;const x=c.getContext('2d');x.scale(d,d);const s=size*.66/Math.max(p.w,p.h),tx=(size-p.w*s)/2,ty=(size-p.h*s)/2;x.translate(tx,ty);x.scale(s,s);x.save();x.clip(p.path);x.drawImage(image,-p.targetX,-p.targetY,game.boardW,game.boardH);x.restore();x.strokeStyle='rgba(255,255,255,.8)';x.lineWidth=1.2/s;x.stroke(p.path)}
   function releaseFromTray(p){
     p.inTray=false;const r=els.canvas.getBoundingClientRect(),center=screenToWorld(r.left+r.width/2,r.top+(r.height-112)/2),spread=Math.min(game.boardW,game.boardH)*.28;p.x=center.x-p.w/2+(Math.random()-.5)*spread;p.y=center.y-p.h/2+(Math.random()-.5)*spread;p.gid=p.id;bringGroupFront(p.gid);buildDock();updateHUD();queueSave();requestRender();
   }
@@ -293,29 +327,6 @@ import { createStorage } from './js/storage.js';
   function stopClock(){clearInterval(timerInterval);timerInterval=null}
   function queueSave(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>game&&storage.putCurrent(serialGame()),500)}
 
-  function resize(){if(currentView!=='game')return;const r=els.canvas.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);els.canvas.width=Math.round(r.width*d);els.canvas.height=Math.round(r.height*d);ctx.setTransform(d,0,0,d,0,0);render()}
-  function screenToWorld(x,y){const r=els.canvas.getBoundingClientRect();return {x:(x-r.left-camera.x)/camera.scale,y:(y-r.top-camera.y)/camera.scale}}
-  function requestRender(){if(!raf)raf=requestAnimationFrame(()=>{raf=0;render()})}
-  function render(){if(!game||currentView!=='game')return;const r=els.canvas.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);ctx.setTransform(d,0,0,d,0,0);ctx.clearRect(0,0,r.width,r.height);ctx.save();ctx.translate(camera.x,camera.y);ctx.scale(camera.scale,camera.scale);
-    ctx.fillStyle='rgba(241,238,231,.42)';ctx.strokeStyle='rgba(18,19,22,.2)';ctx.lineWidth=1/camera.scale;ctx.fillRect(0,0,game.boardW,game.boardH);ctx.strokeRect(0,0,game.boardW,game.boardH);if(game.showGrid){ctx.strokeStyle='rgba(18,19,22,.13)';ctx.lineWidth=.8/camera.scale;for(const p of game.pieces){ctx.save();ctx.translate(p.targetX,p.targetY);ctx.stroke(p.path);ctx.restore()}}
-    for(const id of game.order){const p=game.pieces[id];if(p.inTray)continue;if(trayState.mode==='carry'&&trayState.carry&&p.id===trayState.carry.gid)continue;ctx.save();let pop=1;if(trayState.settleFx&&trayState.settleFx.gid===p.id){const st=(performance.now()-trayState.settleFx.t0)/170;if(st>=1||p.inTray)trayState.settleFx=null;else pop=1+.06*Math.sin(st*Math.PI)}ctx.translate(p.x+p.w/2,p.y+p.h/2);ctx.scale(pop,pop);ctx.translate(-(p.x+p.w/2),-(p.y+p.h/2));ctx.translate(p.x,p.y);if(game.shadows){ctx.shadowColor='rgba(18,19,22,.32)';ctx.shadowBlur=8/camera.scale;ctx.shadowOffsetY=4/camera.scale}ctx.save();ctx.clip(p.path);ctx.drawImage(image,-p.targetX,-p.targetY,game.boardW,game.boardH);ctx.restore();ctx.shadowColor='transparent';ctx.strokeStyle='rgba(255,255,255,.58)';ctx.lineWidth=Math.max(.7,1.1/camera.scale);ctx.stroke(p.path);ctx.restore()}
-    if(trayState.mode==='carry'&&trayState.carry){const c=trayState.carry,p=game.pieces[c.gid],now=performance.now();
-      const sp=c.ready?snapPreviewPos(p):null;
-      if(sp){const a=.55+.35*Math.sin(now/175),pu=1.03+.015*Math.sin(now/175),scx=sp.x+p.w/2,scy=sp.y+p.h/2;
-        ctx.save();ctx.translate(scx,scy);ctx.scale(pu,pu);ctx.translate(-scx,-scy);ctx.translate(sp.x,sp.y);
-        ctx.fillStyle=`rgba(229,88,63,${.18+.1*a})`;ctx.fill(p.path);
-        ctx.strokeStyle=`rgba(229,88,63,${a})`;ctx.lineWidth=2.2/camera.scale;ctx.shadowColor='rgba(229,88,63,.85)';ctx.shadowBlur=13/camera.scale;ctx.stroke(p.path);ctx.restore()}
-      const e=1-Math.pow(1-clamp((now-c.morphT0)/150,0,1),3);
-      ctx.save();ctx.globalAlpha=e*(sp?.86:1);ctx.translate(p.x+p.w/2,p.y+p.h/2);ctx.rotate(c.tilt);ctx.translate(-(p.x+p.w/2),-(p.y+p.h/2));ctx.translate(p.x,p.y);
-      ctx.shadowColor='rgba(18,19,22,.42)';ctx.shadowBlur=24/camera.scale;ctx.shadowOffsetY=12/camera.scale;
-      ctx.save();ctx.clip(p.path);ctx.drawImage(image,-p.targetX,-p.targetY,game.boardW,game.boardH);ctx.restore();
-      ctx.shadowColor='transparent';ctx.strokeStyle='rgba(255,255,255,.7)';ctx.lineWidth=Math.max(.8,1.2/camera.scale);ctx.stroke(p.path);ctx.restore()}
-    ctx.restore()
-  }
-  function fitBoard(){if(!game)return;const r=els.canvas.getBoundingClientRect(),sidePad=Math.max(28,Math.min(80,r.width*.08)),topPad=34,dockSpace=r.width<800?150:165,usableH=Math.max(180,r.height-topPad-dockSpace);camera.scale=Math.min((r.width-sidePad*2)/game.boardW,usableH/game.boardH,1.45);camera.x=(r.width-game.boardW*camera.scale)/2;camera.y=topPad+(usableH-game.boardH*camera.scale)/2;updateHUD();requestRender()}
-  function fitAll(){fitBoard()}
-  function zoomAt(factor,sx,sy){const r=els.canvas.getBoundingClientRect(),x=sx??r.width/2,y=sy??r.height/2,wx=(x-camera.x)/camera.scale,wy=(y-camera.y)/camera.scale;camera.scale=Math.max(.18,Math.min(3,camera.scale*factor));camera.x=x-wx*camera.scale;camera.y=y-wy*camera.scale;updateHUD();requestRender()}
-  function hitPiece(w){for(let i=game.order.length-1;i>=0;i--){const p=game.pieces[game.order[i]];if(p.inTray||p.gid===-1)continue;const lx=w.x-p.x,ly=w.y-p.y;if(lx>-p.w*.25&&lx<p.w*1.25&&ly>-p.h*.25&&ly<p.h*1.25&&ctx.isPointInPath(p.path,lx,ly))return p}return null}
   function bringGroupFront(gid){const ids=game.order.filter(id=>game.pieces[id].gid===gid);game.order=game.order.filter(id=>game.pieces[id].gid!==gid).concat(ids)}
   function trySnap(gid){
     const moving=groupMembers(gid),cell=Math.min(game.boardW/game.cols,game.boardH/game.rows),gridThreshold=cell*.36,offX=moving[0].x-moving[0].targetX,offY=moving[0].y-moving[0].targetY;
