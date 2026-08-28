@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   chooseGrid,
+  createGameState,
   makeTrayOrder,
   secureShuffle,
 } from '../js/puzzle.js';
@@ -12,6 +13,13 @@ const zeroRandom = {
     return values;
   },
 };
+
+class Path2DStub {
+  moveTo() {}
+  lineTo() {}
+  bezierCurveTo() {}
+  closePath() {}
+}
 
 test('secureShuffle returns a permutation without mutating the input', () => {
   const source = [0, 1, 2, 3, 4];

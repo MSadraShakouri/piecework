@@ -1,9 +1,11 @@
 import {
   chooseGrid,
+  createGameState,
   makePath,
   makeTrayOrder,
   neighbors,
   sampleArtwork,
+  serializeGame,
 } from './js/puzzle.js';
 
 import { createDom } from './js/dom.js';
@@ -51,14 +53,18 @@ import { createStorage } from './js/storage.js';
   function loadImage(data){return new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=reject;im.src=data})}
   function updateDifficultyCounts(aspect){$$('#difficultyOptions label').forEach(label=>{const input=label.querySelector('input'),target=+input.value,[cols,rows]=chooseGrid(target,aspect),actual=cols*rows;label.querySelector('b').textContent=actual;label.title=`${cols} × ${rows} (${actual} ${tr('pieces')})`})}
   async function createGame(data,target){
-    image=await loadImage(data);const aspect=image.width/image.height,[cols,rows]=chooseGrid(target,aspect),count=cols*rows,boardW=800,boardH=boardW/aspect,cw=boardW/cols,ch=boardH/rows,pieces=[];let seed=(Date.now()>>>0),rand=()=>((seed=Math.imul(1664525,seed)+1013904223>>>0)/4294967296);
-    const right=Array.from({length:rows},()=>Array(cols).fill(0)),bottom=Array.from({length:rows},()=>Array(cols).fill(0));for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){if(c<cols-1)right[r][c]=rand()>.5?1:-1;if(r<rows-1)bottom[r][c]=rand()>.5?1:-1}
-    for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){const id=r*cols+c;const pc={id,row:r,col:c,w:cw,h:ch,targetX:c*cw,targetY:r*ch,x:c*cw,y:r*ch,gid:id,inTray:true,edges:{t:r? -bottom[r-1][c]:0,r:right[r][c],b:bottom[r][c],l:c? -right[r][c-1]:0}};pc.path=makePath(pc);pieces.push(pc)}
-    const trayOrder=makeTrayOrder(pieces);
-    game={version:3,imageData:data,count,cols,rows,boardW,boardH,pieces,order:pieces.map(p=>p.id),trayOrder,seconds:0,lastTick:Date.now(),completed:false,shadows:true,showGrid:gridOn};showView('game');buildDock();fitBoard();updateHUD();queueSave();toast('Choose a piece from the tray to begin');
+    image=await loadImage(data);
+    game=createGameState({
+      imageData:data,
+      imageWidth:image.width,
+      imageHeight:image.height,
+      target,
+      showGrid:gridOn,
+    });
+    showView('game');buildDock();fitBoard();updateHUD();queueSave();toast('Choose a piece from the tray to begin');
   }
   async function restoreGame(saved){image=await loadImage(saved.imageData);game=saved;game.showGrid=gridOn;if(!game.trayOrder)game.trayOrder=makeTrayOrder(game.pieces);game.pieces.forEach(p=>{p.path=makePath(p);if(p.inTray===undefined)p.inTray=false});game.lastTick=Date.now();showView('game');buildDock();fitBoard();updateHUD();toast('Welcome back');}
-  function serialGame(){if(!game)return null;return {...game,lastTick:undefined,pieces:game.pieces.map(({path,...p})=>p)}}
+  function serialGame(){return serializeGame(game)}
 
   function groupMembers(gid){return game.pieces.filter(p=>p.gid===gid)}
   function connectedCount(){const groups=new Set(game.pieces.map(p=>p.gid));return game.count-groups.size}

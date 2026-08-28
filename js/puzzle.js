@@ -177,3 +177,88 @@ export function neighbors(a, b) {
   return (a.row === b.row && Math.abs(a.col - b.col) === 1)
     || (a.col === b.col && Math.abs(a.row - b.row) === 1);
 }
+
+export function createGameState({
+  imageData,
+  imageWidth,
+  imageHeight,
+  target,
+  showGrid = false,
+  now = Date.now(),
+  cryptoRef = globalThis.crypto,
+  Path2DClass = globalThis.Path2D,
+}) {
+  const aspect = imageWidth / imageHeight;
+  const [cols, rows] = chooseGrid(target, aspect);
+  const count = cols * rows;
+  const boardW = 800;
+  const boardH = boardW / aspect;
+  const cellWidth = boardW / cols;
+  const cellHeight = boardH / rows;
+  const pieces = [];
+  let seed = now >>> 0;
+  const random = () => ((seed = Math.imul(1664525, seed) + 1013904223 >>> 0) / 4294967296);
+  const right = Array.from({ length: rows }, () => Array(cols).fill(0));
+  const bottom = Array.from({ length: rows }, () => Array(cols).fill(0));
+
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      if (col < cols - 1) right[row][col] = random() > 0.5 ? 1 : -1;
+      if (row < rows - 1) bottom[row][col] = random() > 0.5 ? 1 : -1;
+    }
+  }
+
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      const id = row * cols + col;
+      const piece = {
+        id,
+        row,
+        col,
+        w: cellWidth,
+        h: cellHeight,
+        targetX: col * cellWidth,
+        targetY: row * cellHeight,
+        x: col * cellWidth,
+        y: row * cellHeight,
+        gid: id,
+        inTray: true,
+        edges: {
+          t: row ? -bottom[row - 1][col] : 0,
+          r: right[row][col],
+          b: bottom[row][col],
+          l: col ? -right[row][col - 1] : 0,
+        },
+      };
+      piece.path = makePath(piece, Path2DClass);
+      pieces.push(piece);
+    }
+  }
+
+  return {
+    version: 3,
+    imageData,
+    count,
+    cols,
+    rows,
+    boardW,
+    boardH,
+    pieces,
+    order: pieces.map(piece => piece.id),
+    trayOrder: makeTrayOrder(pieces, cryptoRef),
+    seconds: 0,
+    lastTick: now,
+    completed: false,
+    shadows: true,
+    showGrid,
+  };
+}
+
+export function serializeGame(game) {
+  if (!game) return null;
+  return {
+    ...game,
+    lastTick: undefined,
+    pieces: game.pieces.map(({ path, ...piece }) => piece),
+  };
+}
